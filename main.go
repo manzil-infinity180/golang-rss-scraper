@@ -2,15 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"github.com/manzil-infinity180/golang-webrss/internal/database"
-	"log"
-	"net/http"
-	"os"
-
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/manzil-infinity180/golang-webrss/internal/database"
+	"log"
+	"net/http"
+	"os"
 )
 
 type apiConfig struct {
@@ -18,6 +17,7 @@ type apiConfig struct {
 }
 
 func main() {
+
 	godotenv.Load()
 	portString := os.Getenv("PORT")
 	if portString == "" {
@@ -33,10 +33,11 @@ func main() {
 		log.Fatal("Can't connect to database ", err)
 	}
 
-	queries := database.New(conn)
+	db := database.New(conn)
 	apiCfg := apiConfig{
-		DB: queries,
+		DB: db,
 	}
+	//go startScraping(db, 10, time.Minute)
 	router := chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -57,7 +58,7 @@ func main() {
 	v1Router.Post("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerCreateFeedFollow))
 	v1Router.Get("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
 	v1Router.Delete("/feed_follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeedFollows))
-
+	v1Router.Get("/posts", apiCfg.middlewareAuth(apiCfg.handlerPostsGet))
 	router.Mount("/v1", v1Router)
 	srv := &http.Server{
 		Handler: router,
