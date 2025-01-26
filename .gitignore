@@ -2,3 +2,4 @@ golang-webrss
 .vscode/
 .env
 .idea
+.idea*
