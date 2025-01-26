@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/xml"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/manzil-infinity180/golang-webrss/internal/database"
 	"io"
@@ -50,6 +51,7 @@ func scrapeFeed(db *database.Queries, wg *sync.WaitGroup, feed database.Feed) {
 	}
 	for _, item := range feedData.Channel.Item {
 		publishedAt := sql.NullTime{}
+		item.Title = strings.TrimSpace(item.Title)
 		if t, err := time.Parse(time.RFC1123Z, item.PubDate); err == nil {
 			publishedAt = sql.NullTime{
 				Time:  t,
@@ -114,6 +116,109 @@ func fetchFeed(feedURL string) (*RSSFeed, error) {
 	err = xml.Unmarshal(dat, &rssFeed)
 	if err != nil {
 		return nil, err
+	}
+
+	return &rssFeed, nil
+}
+
+type RSSRemoteOk struct {
+	Channel struct {
+		Title       string            `xml:"title"`
+		Description string            `xml:"description"`
+		Item        []RSSRemoteOkItem `xml:"item"`
+	} `xml:"channel"`
+}
+type RSSRemoteOkItem struct {
+	Title       string `xml:"title"`
+	Company     string `xml:"company"`
+	Link        string `xml:"link"`
+	Image       string `xml:"image"`
+	Tag         string `xml:"tag"`
+	Location    string `xml:"location"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
+}
+
+func startScrapingRemoteOk(db *database.Queries, concurrency int, timeBetweenRequest time.Duration, url string) {
+	ticker := time.NewTicker(timeBetweenRequest)
+	for ; ; <-ticker.C {
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := scrapeRemoteFeed(context.Background(), db, url); err != nil {
+				log.Printf("Scrape feed error: %v", err)
+			}
+		}()
+		wg.Wait()
+	}
+}
+
+func scrapeRemoteFeed(ctx context.Context, db *database.Queries, url string) error {
+	feedData, err := fetchRemoteOkFeed(url)
+	if err != nil {
+		return fmt.Errorf("fetch feed failed: %w", err)
+	}
+	for _, item := range feedData.Channel.Item {
+		publishedAt := sql.NullTime{}
+		if t, err := time.Parse(time.RFC1123Z, item.PubDate); err == nil {
+			publishedAt = sql.NullTime{
+				Time:  t,
+				Valid: true,
+			}
+		}
+		_, err = db.CreateRemoteJob(ctx, database.CreateRemoteJobParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Title:     item.Title,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  true,
+			},
+			Company: item.Company,
+			Url:     item.Link,
+			Image:   item.Image,
+			Tag: sql.NullString{
+				String: item.Tag,
+				Valid:  true,
+			},
+			Location:    item.Location,
+			PublishedAt: publishedAt,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
+			log.Printf("Couldn't create post: %v", err)
+			continue
+		}
+	}
+	log.Printf("Feed jobs collected, %v posts found", len(feedData.Channel.Item))
+	return nil
+}
+
+func fetchRemoteOkFeed(feedURL string) (*RSSRemoteOk, error) {
+	httpClient := http.Client{
+		Timeout: 10 * time.Second,
+	}
+	fmt.Println(feedURL)
+	resp, err := httpClient.Get(feedURL)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	dat, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	var rssFeed RSSRemoteOk
+	err = xml.Unmarshal(dat, &rssFeed)
+	if err != nil {
+		log.Printf("Failed to parse RSS feed: %v", err)
+		log.Printf("Raw RSS feed data: %s", string(dat))
+		return nil, fmt.Errorf("XML unmarshal failed: %v", err)
 	}
 
 	return &rssFeed, nil

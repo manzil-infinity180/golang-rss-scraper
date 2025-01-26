@@ -124,3 +124,41 @@ func databasePostsToPosts(posts []database.Post) []Post {
 	}
 	return result
 }
+
+type Job struct {
+	ID          uuid.UUID  `json:"id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	Title       string     `json:"title"`
+	Company     string     `json:"company"`
+	Url         string     `json:"url"`
+	Image       string     `json:"image"`
+	Description *string    `json:"description"`
+	Tag         *string    `json:"tag"`
+	Location    string     `json:"location"`
+	PublishedAt *time.Time `json:"published_at"`
+}
+
+func databaseJobToJob(post database.Job) Job {
+	return Job{
+		ID:          post.ID,
+		CreatedAt:   post.CreatedAt,
+		UpdatedAt:   post.UpdatedAt,
+		Title:       post.Title,
+		Company:     post.Company,
+		Image:       post.Image,
+		Location:    post.Location,
+		Url:         post.Url,
+		Description: nullStringToStringPtr(post.Description),
+		Tag:         nullStringToStringPtr(post.Tag),
+		PublishedAt: nullTimeToTimePtr(post.PublishedAt),
+	}
+}
+
+func databaseJobsToJobs(jobs []database.Job) []Job {
+	result := make([]Job, len(jobs))
+	for i, job := range jobs {
+		result[i] = databaseJobToJob(job)
+	}
+	return result
+}

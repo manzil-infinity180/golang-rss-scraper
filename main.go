@@ -37,7 +37,9 @@ func main() {
 	apiCfg := apiConfig{
 		DB: db,
 	}
+
 	//go startScraping(db, 10, time.Minute)
+	//go startScrapingRemoteOk(db, 10, time.Minute, "https://remoteok.com/rss")
 	router := chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -59,6 +61,7 @@ func main() {
 	v1Router.Get("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
 	v1Router.Delete("/feed_follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeedFollows))
 	v1Router.Get("/posts", apiCfg.middlewareAuth(apiCfg.handlerPostsGet))
+	v1Router.Get("/jobs", apiCfg.handlerGetJobs)
 	router.Mount("/v1", v1Router)
 	srv := &http.Server{
 		Handler: router,
