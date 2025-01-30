@@ -30,6 +30,7 @@ var (
 		"https://twobithistory.org/feed.xml",
 		"https://rachelbythebay.com/w/atom.xml",
 		"https://scattered-thoughts.net/rss.xml",
+
 		"https://gochugarugirl.com/feed/",
 
 		"https://commoncog.com/blog/rss/",
@@ -42,13 +43,13 @@ var (
 		"https://www.slowernews.com/rss.xml",
 		"https://macwright.com/rss.xml",
 		"https://mikehudack.substack.com/feed",
-		"https://www.wildlondon.org.uk/blog/all/rss.xml",
-		"https://blaggregator.recurse.com/atom.xml?token=4c4c4e40044244aab4a36e681dfb8fb0",
-
-		"https://blog.golang.org/feed.atom?format=xml",
-		"https://anewsletter.alisoneroman.com/feed",
-
-		"https://routley.io/reserialised/great-expectations/2022-08-24/index.xml",
+		//"https://www.wildlondon.org.uk/blog/all/rss.xml",
+		//"https://blaggregator.recurse.com/atom.xml?token=4c4c4e40044244aab4a36e681dfb8fb0",
+		//
+		//"https://blog.golang.org/feed.atom?format=xml",
+		//"https://anewsletter.alisoneroman.com/feed",
+		//
+		//"https://routley.io/reserialised/great-expectations/2022-08-24/index.xml",
 	}
 	wg         sync.WaitGroup
 	outputDir  = "docs" // So we can host the site on GitHub Pages
@@ -106,7 +107,10 @@ func main() {
 
 	wg.Wait()
 	//close(postChan)
-
+	if err := os.RemoveAll(path.Join(outputDir, "posts")); err != nil {
+		log.Printf("Unable to create directory : %v", err)
+		return
+	}
 	if err := os.MkdirAll(path.Join(outputDir, "posts"), 0700); err != nil {
 		log.Printf("Unable to create directory : %v", err)
 		return
