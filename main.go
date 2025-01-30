@@ -17,7 +17,7 @@ type apiConfig struct {
 }
 
 func main() {
-
+	GetPost("https://feeds.twit.tv/twit.xml")
 	godotenv.Load()
 	portString := os.Getenv("PORT")
 	if portString == "" {
